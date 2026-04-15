@@ -12,7 +12,24 @@ const errorHandler = require('./middleware/error');
 const connectDB = require('./config/db');
 const configurePassport = require('./config/passport');
 const { connectRedis } = require('./config/redis');
-const CLIENT_URL = process.env.CLIENT_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+
+const normalizeOrigin = value => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch (_error) {
+    return value.trim();
+  }
+};
+
+const allowedOrigins = [process.env.CLIENT_URL, process.env.CORS_ORIGIN, 'http://localhost:3000']
+  .filter(Boolean)
+  .flatMap(value => value.split(','))
+  .map(origin => normalizeOrigin(origin))
+  .filter(Boolean);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -22,7 +39,19 @@ const apiLimiter = rateLimit({
 });
 
 const corsOptions = {
-  origin: CLIENT_URL,
+  origin(origin, callback) {
+    // Allow non-browser requests with no Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const requestOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.includes(requestOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Not allowed by CORS: ${requestOrigin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'x-auth-token']
@@ -67,6 +96,7 @@ app.get('/api/healthz', (req, res) => {
 app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'test') {
+  console.info('Allowed CORS origins:', allowedOrigins);
   connectDB();
   connectRedis().catch(error => {
     console.error('Redis connection failed:', error.message);
