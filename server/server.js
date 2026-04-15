@@ -25,11 +25,15 @@ const normalizeOrigin = value => {
   }
 };
 
-const allowedOrigins = [process.env.CLIENT_URL, process.env.CORS_ORIGIN, 'http://localhost:3000']
+const allowedOrigins = [process.env.CLIENT_URL, process.env.CORS_ORIGIN]
   .filter(Boolean)
   .flatMap(value => value.split(','))
   .map(origin => normalizeOrigin(origin))
   .filter(Boolean);
+
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000');
+}
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -45,11 +49,17 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Fail-safe for hosted platforms: if no allowlist configured, reflect request origin.
+    if (allowedOrigins.length === 0) {
+      return callback(null, true);
+    }
+
     const requestOrigin = normalizeOrigin(origin);
     if (allowedOrigins.includes(requestOrigin)) {
       return callback(null, true);
     }
 
+    console.warn('[cors] blocked origin', requestOrigin, 'allowed:', allowedOrigins);
     return callback(new Error(`Not allowed by CORS: ${requestOrigin}`));
   },
   credentials: true,
@@ -96,7 +106,7 @@ app.get('/api/healthz', (req, res) => {
 app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'test') {
-  console.info('Allowed CORS origins:', allowedOrigins);
+  console.info('Allowed CORS origins:', allowedOrigins.length > 0 ? allowedOrigins : 'ANY (no allowlist set)');
   connectDB();
   connectRedis().catch(error => {
     console.error('Redis connection failed:', error.message);
