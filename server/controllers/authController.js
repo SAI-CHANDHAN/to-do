@@ -2,19 +2,26 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
-const passport = require('passport');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const {
   generateAccessToken,
   generateRefreshToken,
+  generateMfaChallengeToken,
+  verifyMfaChallengeToken,
   getTokenJti,
   refreshTokenSecret
 } = require('../utils/tokens');
+const { encrypt, decrypt } = require('../utils/encryption');
 const { clearAuthCookies, setAuthCookies } = require('../utils/cookies');
 const {
   setRefreshTokenRecord,
   getRefreshTokenRecord,
   revokeRefreshToken,
-  revokeUserRefreshTokens
+  revokeUserRefreshTokens,
+  setMfaChallenge,
+  getMfaChallenge,
+  revokeMfaChallenge
 } = require('../config/redis');
 
 const refreshTokenTtlSeconds = 7 * 24 * 60 * 60;
@@ -28,7 +35,8 @@ const buildAuthResponse = user => ({
       id: user._id,
       name: user.name,
       email: user.email,
-      avatar: user.avatar || null
+      avatar: user.avatar || null,
+      mfaEnabled: Boolean(user.mfaEnabled)
     }
   },
   message: 'Authentication successful',
@@ -65,7 +73,8 @@ const sanitizeUser = user => ({
   id: user._id,
   name: user.name,
   email: user.email,
-  avatar: user.avatar || null
+  avatar: user.avatar || null,
+  mfaEnabled: Boolean(user.mfaEnabled)
 });
 
 // Register user
@@ -157,6 +166,25 @@ exports.loginUser = async (req, res) => {
       });
     }
 
+    if (user.mfaEnabled && user.mfaSecret) {
+      const { token: mfaToken, challengeId } = generateMfaChallengeToken(user);
+      await setMfaChallenge({
+        challengeId,
+        userId: user._id.toString(),
+        expiresInSeconds: 300
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          mfaRequired: true,
+          mfaToken
+        },
+        message: 'MFA verification required',
+        errors: null
+      });
+    }
+
     const response = await persistSession(res, user);
     console.info('[auth] login success', JSON.stringify({ email: user.email, userId: user._id.toString() }));
 
@@ -170,6 +198,181 @@ exports.loginUser = async (req, res) => {
       success: false,
       data: null,
       message: 'Server error',
+      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    });
+  }
+};
+
+exports.setupMfa = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'User not found',
+        errors: null
+      });
+    }
+
+    const secret = speakeasy.generateSecret({
+      name: `Tasque (${user.email})`,
+      length: 32
+    });
+
+    user.mfaTempSecret = encrypt(secret.base32);
+    await user.save();
+
+    const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    return res.json({
+      success: true,
+      data: {
+        qrCodeDataUrl,
+        manualKey: secret.base32
+      },
+      message: 'MFA setup initialized',
+      errors: null
+    });
+  } catch (err) {
+    console.error(err.message);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Server error',
+      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    });
+  }
+};
+
+exports.verifyMfaSetup = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      data: null,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !user.mfaTempSecret) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'MFA setup is not initialized',
+        errors: null
+      });
+    }
+
+    const otp = String(req.body.otp).trim();
+    const secret = decrypt(user.mfaTempSecret);
+    const isValid = speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token: otp,
+      window: 1
+    });
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid MFA code',
+        errors: null
+      });
+    }
+
+    user.mfaSecret = user.mfaTempSecret;
+    user.mfaTempSecret = null;
+    user.mfaEnabled = true;
+    await user.save();
+
+    return res.json({
+      success: true,
+      data: { mfaEnabled: true },
+      message: 'MFA enabled successfully',
+      errors: null
+    });
+  } catch (err) {
+    console.error(err.message);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Server error',
+      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    });
+  }
+};
+
+exports.mfaLogin = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      data: null,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const { mfaToken, otp } = req.body;
+    const decodedChallenge = verifyMfaChallengeToken(mfaToken);
+    const challengeUserId = decodedChallenge.user?.id;
+    const challengeId = decodedChallenge.challengeId;
+
+    const storedChallengeUserId = await getMfaChallenge(challengeId);
+    if (storedChallengeUserId && storedChallengeUserId !== challengeUserId) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'MFA challenge is not valid',
+        errors: null
+      });
+    }
+
+    const user = await User.findById(challengeUserId);
+    if (!user || !user.mfaEnabled || !user.mfaSecret) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'MFA is not enabled for this account',
+        errors: null
+      });
+    }
+
+    const secret = decrypt(user.mfaSecret);
+    const isValid = speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token: String(otp).trim(),
+      window: 1
+    });
+
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'Invalid MFA code',
+        errors: null
+      });
+    }
+
+    await revokeMfaChallenge(challengeId);
+
+    const response = await persistSession(res, user);
+    return res.json({
+      ...response,
+      message: 'Login successful'
+    });
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      data: null,
+      message: 'MFA challenge has expired or is invalid',
       errors: process.env.NODE_ENV === 'production' ? null : [err.message]
     });
   }

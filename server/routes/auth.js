@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const auth = require('../middleware/auth');
 const csrfProtection = require('../middleware/csrf');
-const { userValidation, loginValidation } = require('../middleware/sanitize');
+const { userValidation, loginValidation, mfaOtpValidation, mfaLoginValidation } = require('../middleware/sanitize');
 const passport = require('passport');
 
 const googleOAuthConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -68,6 +68,11 @@ router.post(
   authController.loginUser
 );
 
+// @route   POST api/auth/mfa/login
+// @desc    Complete login with MFA challenge token
+// @access  Public
+router.post('/mfa/login', credentialLimiter, mfaLoginValidation, authController.mfaLogin);
+
 // @route   POST api/auth/refresh
 // @desc    Refresh access token
 // @access  Public with refresh cookie
@@ -77,6 +82,16 @@ router.post('/refresh', refreshLimiter, csrfProtection, authController.refreshTo
 // @desc    Logout user
 // @access  Private
 router.post('/logout', csrfProtection, auth, authController.logout);
+
+// @route   POST api/auth/mfa/setup
+// @desc    Generate MFA secret + QR code for current user
+// @access  Private
+router.post('/mfa/setup', csrfProtection, auth, authController.setupMfa);
+
+// @route   POST api/auth/mfa/verify
+// @desc    Confirm MFA setup using OTP
+// @access  Private
+router.post('/mfa/verify', csrfProtection, auth, mfaOtpValidation, authController.verifyMfaSetup);
 
 // @route   GET api/auth/google
 // @desc    Google OAuth login
