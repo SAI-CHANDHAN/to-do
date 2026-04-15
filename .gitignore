@@ -1,0 +1,13 @@
+# Global environment files
+.env
+.env.*
+
+# Keep environment templates
+!.env.example
+!.env.*.example
+
+# Common artifacts
+node_modules/
+coverage/
+build/
+.DS_Store
