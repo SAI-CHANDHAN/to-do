@@ -4,6 +4,7 @@ const buildCookieOptions = maxAge => ({
   httpOnly: true,
   secure: isProd,
   sameSite: isProd ? 'none' : 'lax',
+  partitioned: isProd,
   path: '/',
   maxAge
 });
@@ -17,6 +18,7 @@ const setAuthCookies = (res, { accessToken, refreshToken, csrfToken }) => {
       httpOnly: false,
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
+      partitioned: isProd,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -27,6 +29,7 @@ const clearAuthCookies = res => {
   const baseOptions = {
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
+    partitioned: isProd,
     path: '/'
   };
 
