@@ -160,11 +160,13 @@ export const AuthProvider = ({ children }) => {
         type: 'AUTH_SUCCESS',
         payload: res.data.data.user
       });
+      return { success: true, data: res.data.data };
     } catch (err) {
       dispatch({
         type: 'AUTH_ERROR',
         payload: getApiError(err)
       });
+      return { success: false, error: getApiError(err) };
     }
   };
 
@@ -177,16 +179,96 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json'
         }
       });
+
+      if (res.data?.data?.mfaRequired) {
+        return {
+          success: true,
+          mfaRequired: true,
+          mfaToken: res.data.data.mfaToken
+        };
+      }
+
       console.log('[auth-client] login success');
       dispatch({
         type: 'AUTH_SUCCESS',
         payload: res.data.data.user
       });
+      return { success: true, mfaRequired: false };
     } catch (err) {
+      const message = getApiError(err);
       dispatch({
         type: 'AUTH_ERROR',
-        payload: getApiError(err)
+        payload: message
       });
+      return { success: false, error: message };
+    }
+  };
+
+  const loginWithMfa = async ({ mfaToken, otp }) => {
+    try {
+      const res = await axios.post(
+        apiUrl('/api/auth/mfa/login'),
+        { mfaToken, otp },
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: res.data.data.user
+      });
+
+      return { success: true };
+    } catch (err) {
+      const message = getApiError(err);
+      dispatch({
+        type: 'AUTH_ERROR',
+        payload: message
+      });
+      return { success: false, error: message };
+    }
+  };
+
+  const setupMfa = async () => {
+    try {
+      const res = await axios.post(apiUrl('/api/auth/mfa/setup'), {}, { withCredentials: true });
+      return { success: true, data: res.data.data };
+    } catch (err) {
+      const message = getApiError(err);
+      dispatch({
+        type: 'AUTH_ERROR',
+        payload: message
+      });
+      return { success: false, error: message };
+    }
+  };
+
+  const verifyMfaSetup = async otp => {
+    try {
+      const res = await axios.post(
+        apiUrl('/api/auth/mfa/verify'),
+        { otp },
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await loadUser();
+      return { success: true, data: res.data.data };
+    } catch (err) {
+      const message = getApiError(err);
+      dispatch({
+        type: 'AUTH_ERROR',
+        payload: message
+      });
+      return { success: false, error: message };
     }
   };
 
@@ -211,6 +293,9 @@ export const AuthProvider = ({ children }) => {
         error: state.error,
         register,
         login,
+        loginWithMfa,
+        setupMfa,
+        verifyMfaSetup,
         logout,
         loadUser,
         clearErrors

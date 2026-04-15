@@ -23,6 +23,15 @@ exports.loginValidation = [
   check('password', 'Password is required').exists()
 ];
 
+exports.mfaOtpValidation = [
+  check('otp', 'OTP must be a 6-digit code').matches(/^\d{6}$/)
+];
+
+exports.mfaLoginValidation = [
+  check('mfaToken', 'MFA challenge token is required').isString().notEmpty(),
+  ...exports.mfaOtpValidation
+];
+
 exports.createTaskValidation = [
   check('title', 'Title is required').not().isEmpty().trim().escape(),
   body('description').optional().trim().escape(),

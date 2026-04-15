@@ -65,6 +65,7 @@ const connectRedis = async () => {
 const cacheTasksKey = userId => `cache:tasks:${userId}`;
 const refreshTokenKey = jti => `auth:refresh:${jti}`;
 const refreshTokenUserKey = userId => `auth:refresh:user:${userId}`;
+const mfaChallengeKey = challengeId => `auth:mfa:challenge:${challengeId}`;
 
 const setRefreshTokenRecord = async ({ userId, jti, tokenHash, expiresInSeconds }) => {
   const redisClient = getRedisClient();
@@ -141,6 +142,35 @@ const clearTaskCache = async userId => {
   await redisClient.del(cacheTasksKey(userId));
 };
 
+const setMfaChallenge = async ({ challengeId, userId, expiresInSeconds = 300 }) => {
+  const redisClient = getRedisClient();
+  if (!isRedisReady(redisClient)) {
+    return;
+  }
+
+  await redisClient.set(mfaChallengeKey(challengeId), userId, {
+    EX: expiresInSeconds
+  });
+};
+
+const getMfaChallenge = async challengeId => {
+  const redisClient = getRedisClient();
+  if (!isRedisReady(redisClient)) {
+    return null;
+  }
+
+  return redisClient.get(mfaChallengeKey(challengeId));
+};
+
+const revokeMfaChallenge = async challengeId => {
+  const redisClient = getRedisClient();
+  if (!isRedisReady(redisClient)) {
+    return;
+  }
+
+  await redisClient.del(mfaChallengeKey(challengeId));
+};
+
 module.exports = {
   connectRedis,
   getRedisClient,
@@ -151,6 +181,9 @@ module.exports = {
   getRefreshTokenRecord,
   revokeRefreshToken,
   revokeUserRefreshTokens,
+  setMfaChallenge,
+  getMfaChallenge,
+  revokeMfaChallenge,
   refreshTokenKey,
   cacheTasksKey
 };

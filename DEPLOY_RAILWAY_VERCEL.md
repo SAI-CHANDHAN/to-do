@@ -22,6 +22,7 @@ Goal
 - REDIS_URL=<your-redis-url>
 - JWT_ACCESS_SECRET=<strong-random-secret>
 - JWT_REFRESH_SECRET=<strong-random-secret>
+- ENCRYPTION_KEY=<64-char-hex-key>
 - GOOGLE_CLIENT_ID=<google-client-id>
 - GOOGLE_CLIENT_SECRET=<google-client-secret>
 - GOOGLE_CALLBACK_URL=https://<your-railway-domain>/api/auth/google/callback
@@ -50,6 +51,7 @@ Goal
 - Open frontend app:
   - https://<your-vercel-domain>
 - Test login/register.
+- Enable MFA from dashboard and verify TOTP login with an authenticator app.
 - Test Google login redirect and callback.
 - Confirm auth persists after refresh.
 
@@ -62,6 +64,8 @@ Goal
   - Recheck CLIENT_URL and redeploy Railway service.
 - If 401 after login:
   - Check browser request includes cookies and backend is in production mode.
+- If MFA setup fails with server error:
+  - Confirm ENCRYPTION_KEY is set on Railway and redeploy the service.
 
 8. Security reminders
 - Do not commit real .env files.
