@@ -70,7 +70,7 @@ const Login = () => {
   };
 
   const onGoogleLogin = () => {
-    window.location.assign(apiUrl('/api/auth/google'));
+    window.location.assign('/api/auth/google');
   };
 
   return (
