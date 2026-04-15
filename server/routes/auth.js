@@ -124,9 +124,17 @@ router.get(
       });
     }
 
-    return passport.authenticate('google', {
-      session: false,
-      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`
+    return passport.authenticate('google', { session: false }, (err, user) => {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+      if (err || !user) {
+        const reason = encodeURIComponent(err?.message || 'google-auth-failed');
+        console.warn('[auth] google callback failed', err?.message || 'No user returned');
+        return res.redirect(`${frontendUrl}/login?oauthError=${reason}`);
+      }
+
+      req.user = user;
+      return next();
     })(req, res, next);
   },
   authController.googleCallback

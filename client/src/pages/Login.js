@@ -1,10 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, loginWithMfa, error, clearErrors, isAuthenticated } = useContext(AuthContext);
   const [user, setUser] = useState({
     email: '',
@@ -16,6 +17,12 @@ const Login = () => {
   const [alert, setAlert] = useState('');
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('oauthError');
+    if (oauthError) {
+      setAlert(`Google login failed: ${decodeURIComponent(oauthError)}`);
+    }
+
     if (isAuthenticated) {
       navigate('/dashboard');
     }
@@ -25,7 +32,7 @@ const Login = () => {
       clearErrors();
     }
     // eslint-disable-next-line
-  }, [error, isAuthenticated]);
+  }, [error, isAuthenticated, location.search]);
 
   const { email, password } = user;
 
