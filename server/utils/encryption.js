@@ -2,14 +2,28 @@ const crypto = require('crypto');
 
 const algorithm = 'aes-256-gcm';
 
-const resolveEncryptionKey = () => {
-  const raw = process.env.ENCRYPTION_KEY || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+const deriveKey = raw => crypto.createHash('sha256').update(raw).digest();
 
-  if (!raw) {
+const resolveEncryptionKeyCandidates = () => {
+  const candidates = [
+    process.env.ENCRYPTION_KEY,
+    process.env.JWT_ACCESS_SECRET,
+    process.env.JWT_SECRET
+  ].filter(Boolean);
+
+  const unique = [...new Set(candidates)];
+
+  if (!unique.length) {
     throw new Error('ENCRYPTION_KEY is required for MFA secret encryption');
   }
 
-  return crypto.createHash('sha256').update(raw).digest();
+  return unique.map(deriveKey);
+};
+
+const resolveEncryptionKey = () => {
+  const keys = resolveEncryptionKeyCandidates();
+
+  return keys[0];
 };
 
 const encrypt = value => {
@@ -36,15 +50,23 @@ const decrypt = payload => {
     throw new Error('Encrypted payload format is invalid');
   }
 
-  const key = resolveEncryptionKey();
-  const decipher = crypto.createDecipheriv(algorithm, key, Buffer.from(ivHex, 'hex'));
-  decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(encryptedHex, 'hex')),
-    decipher.final()
-  ]);
+  const iv = Buffer.from(ivHex, 'hex');
+  const authTag = Buffer.from(authTagHex, 'hex');
+  const encrypted = Buffer.from(encryptedHex, 'hex');
+  const keys = resolveEncryptionKeyCandidates();
 
-  return decrypted.toString('utf8');
+  for (const key of keys) {
+    try {
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+      return decrypted.toString('utf8');
+    } catch (err) {
+      // Continue with fallback keys for backward compatibility.
+    }
+  }
+
+  throw new Error('Unable to decrypt payload with configured keys');
 };
 
 module.exports = {
