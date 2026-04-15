@@ -82,6 +82,7 @@ exports.getTaskById = async (req, res) => {
 exports.createTask = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.warn('[tasks] create validation failed', errors.array());
     return res.status(400).json({
       success: false,
       data: null,
@@ -93,14 +94,19 @@ exports.createTask = async (req, res) => {
   const { title, description, status, priority, dueDate } = req.body;
 
   try {
-    const newTask = new Task({
+    const taskPayload = {
       title,
       description,
       status,
       priority,
-      dueDate,
       user: req.user.id
-    });
+    };
+
+    if (dueDate) {
+      taskPayload.dueDate = dueDate;
+    }
+
+    const newTask = new Task(taskPayload);
 
     const task = await newTask.save();
     await clearTaskCache(req.user.id);
@@ -125,6 +131,7 @@ exports.createTask = async (req, res) => {
 exports.updateTask = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.warn('[tasks] update validation failed', errors.array());
     return res.status(400).json({
       success: false,
       data: null,
@@ -141,7 +148,9 @@ exports.updateTask = async (req, res) => {
   if (description !== undefined) taskFields.description = description;
   if (status !== undefined) taskFields.status = status;
   if (priority !== undefined) taskFields.priority = priority;
-  if (dueDate !== undefined) taskFields.dueDate = dueDate;
+  if (dueDate !== undefined) {
+    taskFields.dueDate = dueDate || null;
+  }
 
   try {
     let task = await Task.findById(req.params.id);

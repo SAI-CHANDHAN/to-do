@@ -16,7 +16,11 @@ exports.createTaskValidation = [
   body('description').optional().trim().escape(),
   check('status').optional().isIn(['pending', 'in-progress', 'completed']),
   check('priority').optional().isIn(['low', 'medium', 'high']),
-  body('dueDate').optional({ checkFalsy: true }).isISO8601().toDate()
+  body('dueDate')
+    .customSanitizer(value => (value === '' || value === null ? undefined : value))
+    .optional()
+    .isISO8601()
+    .toDate()
 ];
 
 exports.updateTaskValidation = [
@@ -24,5 +28,9 @@ exports.updateTaskValidation = [
   body('description').optional().trim().escape(),
   check('status').optional().isIn(['pending', 'in-progress', 'completed']),
   check('priority').optional().isIn(['low', 'medium', 'high']),
-  body('dueDate').optional({ checkFalsy: true }).isISO8601().toDate()
+  body('dueDate')
+    .customSanitizer(value => (value === '' || value === null ? undefined : value))
+    .optional()
+    .isISO8601()
+    .toDate()
 ];
