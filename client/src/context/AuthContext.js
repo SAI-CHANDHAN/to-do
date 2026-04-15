@@ -72,7 +72,10 @@ export const AuthProvider = ({ children }) => {
           originalRequest?._retry ||
           originalRequest?.url?.includes('/api/auth/refresh') ||
           originalRequest?.url?.includes('/api/auth/login') ||
-          originalRequest?.url?.includes('/api/auth/register')
+          originalRequest?.url?.includes('/api/auth/register') ||
+          originalRequest?.url?.includes('/api/auth/mfa/login') ||
+          originalRequest?.url?.includes('/api/auth/mfa/setup') ||
+          originalRequest?.url?.includes('/api/auth/mfa/verify')
         ) {
           return Promise.reject(error);
         }
