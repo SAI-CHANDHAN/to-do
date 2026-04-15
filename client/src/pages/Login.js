@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { apiUrl } from '../config/api';
 
 const Login = () => {
   const navigate = useNavigate();
