@@ -171,7 +171,7 @@ exports.loginUser = async (req, res) => {
       await setMfaChallenge({
         challengeId,
         userId: user._id.toString(),
-        expiresInSeconds: 300
+        expiresInSeconds: 600
       });
 
       return res.json({

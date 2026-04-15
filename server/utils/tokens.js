@@ -33,7 +33,7 @@ const generateMfaChallengeToken = user => {
       challengeId
     },
     accessTokenSecret,
-    '5m',
+    '10m',
     challengeId
   );
 
@@ -44,8 +44,23 @@ const generateMfaChallengeToken = user => {
 };
 
 const verifyMfaChallengeToken = token => {
-  const decoded = jwt.verify(token, accessTokenSecret);
-  if (decoded.purpose !== 'mfa-login' || !decoded.challengeId) {
+  const secrets = [
+    accessTokenSecret,
+    process.env.JWT_SECRET,
+    process.env.JWT_ACCESS_SECRET
+  ].filter(Boolean);
+
+  let decoded;
+  for (const secret of [...new Set(secrets)]) {
+    try {
+      decoded = jwt.verify(token, secret);
+      break;
+    } catch (err) {
+      // Try next secret for backward compatibility across environments.
+    }
+  }
+
+  if (!decoded || decoded.purpose !== 'mfa-login' || !decoded.challengeId) {
     throw new Error('Invalid MFA challenge token');
   }
 
