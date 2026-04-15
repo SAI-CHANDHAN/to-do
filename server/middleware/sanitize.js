@@ -1,5 +1,17 @@
 const { check, body } = require('express-validator');
 
+const validStatuses = ['pending', 'in-progress', 'completed'];
+const validPriorities = ['low', 'medium', 'high'];
+
+const sanitizeDueDate = value => {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
 exports.userValidation = [
   check('name', 'Name is required').not().isEmpty().trim().escape(),
   check('email', 'Please include a valid email').isEmail().normalizeEmail(),
@@ -14,23 +26,19 @@ exports.loginValidation = [
 exports.createTaskValidation = [
   check('title', 'Title is required').not().isEmpty().trim().escape(),
   body('description').optional().trim().escape(),
-  check('status').optional().isIn(['pending', 'in-progress', 'completed']),
-  check('priority').optional().isIn(['low', 'medium', 'high']),
+  body('status').optional().customSanitizer(value => (validStatuses.includes(value) ? value : undefined)),
+  body('priority').optional().customSanitizer(value => (validPriorities.includes(value) ? value : undefined)),
   body('dueDate')
-    .customSanitizer(value => (value === '' || value === null ? undefined : value))
-    .optional()
-    .isISO8601()
-    .toDate()
+    .optional({ checkFalsy: true })
+    .customSanitizer(sanitizeDueDate)
 ];
 
 exports.updateTaskValidation = [
   check('title').optional().not().isEmpty().trim().escape(),
   body('description').optional().trim().escape(),
-  check('status').optional().isIn(['pending', 'in-progress', 'completed']),
-  check('priority').optional().isIn(['low', 'medium', 'high']),
+  body('status').optional().customSanitizer(value => (validStatuses.includes(value) ? value : undefined)),
+  body('priority').optional().customSanitizer(value => (validPriorities.includes(value) ? value : undefined)),
   body('dueDate')
-    .customSanitizer(value => (value === '' || value === null ? undefined : value))
-    .optional()
-    .isISO8601()
-    .toDate()
+    .optional({ checkFalsy: true })
+    .customSanitizer(sanitizeDueDate)
 ];
