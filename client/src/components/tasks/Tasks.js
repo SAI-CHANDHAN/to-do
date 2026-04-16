@@ -6,6 +6,8 @@ const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const Tasks = ({ filter }) => {
   const { tasks, getTasks, loading } = useContext(TaskContext);
+  const safeFilter = (filter || '').trim();
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
 
   useEffect(() => {
     getTasks();
@@ -13,18 +15,18 @@ const Tasks = ({ filter }) => {
   }, []);
 
   const filteredTasks = useMemo(() => {
-    if (!tasks || !filter.trim()) {
-      return tasks || [];
+    if (!safeFilter) {
+      return safeTasks;
     }
 
-    const regex = new RegExp(escapeRegExp(filter.trim()), 'i');
+    const regex = new RegExp(escapeRegExp(safeFilter), 'i');
 
-    return tasks.filter(task =>
+    return safeTasks.filter(task =>
       regex.test(task.title) || regex.test(task.description || '')
     );
-  }, [tasks, filter]);
+  }, [safeTasks, safeFilter]);
 
-  if (tasks !== null && tasks.length === 0 && !loading) {
+  if (safeTasks.length === 0 && !loading && !safeFilter) {
     return <h4>Please add a task</h4>;
   }
 
@@ -35,7 +37,7 @@ const Tasks = ({ filter }) => {
   return (
     <>
       <div className="task-list" role="list" aria-label="Tasks">
-        {tasks !== null && !loading ? (
+        {!loading ? (
           filteredTasks.map(task => <TaskItem key={task._id} task={task} />)
         ) : (
           <div>Loading tasks...</div>
