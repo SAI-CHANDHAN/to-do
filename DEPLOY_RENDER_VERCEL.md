@@ -22,8 +22,10 @@ Required Render environment variables:
 2) Deploy frontend on Vercel
 - Import this repo in Vercel.
 - Vercel uses vercel.json at repo root to build client app.
+- If your Vercel Root Directory is set to client, Vercel will use client/vercel.json for rewrites.
 - Add frontend env var:
   - REACT_APP_API_URL=https://<your-render-domain>
+- Redeploy the frontend after changing environment variables.
 
 3) Google OAuth setup
 - In Google Cloud Console, add:

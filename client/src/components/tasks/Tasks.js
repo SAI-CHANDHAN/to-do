@@ -7,7 +7,7 @@ const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const Tasks = ({ filter }) => {
   const { tasks, getTasks, loading } = useContext(TaskContext);
   const safeFilter = (filter || '').trim();
-  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeTasks = useMemo(() => (Array.isArray(tasks) ? tasks : []), [tasks]);
 
   useEffect(() => {
     getTasks();
