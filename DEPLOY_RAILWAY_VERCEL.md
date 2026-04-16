@@ -33,9 +33,11 @@ Goal
 - Root directory: client.
 - Build command: npm run build.
 - Output directory: build.
+- Keep client/vercel.json in place so /api/* rewrites and SPA fallback work when root is client.
 
 4. Vercel frontend environment variable
 - REACT_APP_API_URL=https://<your-railway-domain>
+- After updating env vars, trigger a new Vercel deploy (Redeploy).
 
 5. Google OAuth configuration
 - In Google Cloud Console, open OAuth client settings.
