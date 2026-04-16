@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }) => {
           notifySubscribers(null);
           return axios(originalRequest);
         } catch (refreshError) {
-          console.warn('[auth-client] refresh failed', refreshError?.response?.data || refreshError.message);
+          console.warn('[auth-client] refresh failed', getApiError(refreshError));
           notifySubscribers(refreshError);
           dispatch({ type: 'AUTH_INIT' });
           return Promise.reject(refreshError);
@@ -161,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       console.log('[auth-client] user loaded');
       return true;
     } catch (err) {
-      console.warn('[auth-client] loadUser failed', err?.response?.data || err.message);
+      console.warn('[auth-client] loadUser failed', getApiError(err));
       dispatch({ type: 'AUTH_INIT' });
       return false;
     }
