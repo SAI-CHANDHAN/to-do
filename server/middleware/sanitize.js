@@ -32,6 +32,16 @@ exports.mfaLoginValidation = [
   ...exports.mfaOtpValidation
 ];
 
+exports.mfaRecoveryValidation = [
+  check('mfaToken', 'MFA challenge token is required').isString().notEmpty()
+];
+
+exports.mfaDisableValidation = [
+  check('confirm', 'Set confirm=true to disable MFA')
+    .custom(value => value === true || value === 'true')
+    .toBoolean()
+];
+
 exports.createTaskValidation = [
   check('title', 'Title is required').not().isEmpty().trim().escape(),
   body('description').optional().trim().escape(),

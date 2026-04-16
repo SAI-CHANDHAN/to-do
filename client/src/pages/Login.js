@@ -6,7 +6,7 @@ import { apiUrl } from '../config/api';
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithMfa, error, clearErrors, isAuthenticated } = useContext(AuthContext);
+  const { login, loginWithMfa, recoverMfaLogin, error, clearErrors, isAuthenticated } = useContext(AuthContext);
   const [user, setUser] = useState({
     email: '',
     password: ''
@@ -71,6 +71,22 @@ const Login = () => {
 
   const onGoogleLogin = () => {
     window.location.assign(apiUrl('/api/auth/google'));
+  };
+
+  const onRecoverMfa = async () => {
+    if (!mfaToken) {
+      setAlert('MFA challenge expired. Please login again.');
+      setMfaRequired(false);
+      return;
+    }
+
+    const result = await recoverMfaLogin(mfaToken);
+    if (!result.success) {
+      setAlert(result.error || 'Unable to reset MFA. Please try again.');
+      return;
+    }
+
+    setAlert(result.message || 'MFA reset completed. Please set it up again from your dashboard.');
   };
 
   return (
@@ -138,6 +154,9 @@ const Login = () => {
             value="Verify MFA"
             className="btn btn-primary btn-block"
           />
+          <button type="button" className="btn btn-light btn-block" onClick={onRecoverMfa}>
+            I removed my authenticator app, reset MFA
+          </button>
         </form>
       )}
     </div>

@@ -12,32 +12,18 @@ const configurePassport = () => {
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
-        skipUserProfile: true
+        callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
       },
-      async (accessToken, _refreshToken, _profile, done) => {
+      async (_accessToken, _refreshToken, profile, done) => {
         try {
-          const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
-            headers: {
-              Authorization: `Bearer ${accessToken}`
-            }
-          });
-
-          if (!profileResponse.ok) {
-            const body = await profileResponse.text();
-            return done(new Error(`Google userinfo request failed: ${profileResponse.status} ${body}`), null);
-          }
-
-          const profile = await profileResponse.json();
-
-          const email = profile.email;
+          const email = profile?.emails?.[0]?.value?.toLowerCase();
           if (!email) {
             return done(new Error('Google account did not return an email address'));
           }
 
-          const googleId = profile.sub;
-          const name = profile.name || email.split('@')[0];
-          const avatar = profile.picture || null;
+          const googleId = profile.id;
+          const name = profile.displayName || email.split('@')[0];
+          const avatar = profile?.photos?.[0]?.value || null;
 
           let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
