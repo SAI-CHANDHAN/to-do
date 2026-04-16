@@ -15,6 +15,18 @@ const initialState = {
 // Create Context
 export const TaskContext = createContext(initialState);
 
+const normalizeTaskList = payload => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.tasks)) {
+    return payload.tasks;
+  }
+
+  return [];
+};
+
 // Provider Component
 export const TaskProvider = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
@@ -25,7 +37,7 @@ export const TaskProvider = ({ children }) => {
       const res = await axios.get(apiUrl('/api/tasks'));
       dispatch({
         type: 'GET_TASKS',
-        payload: res.data.data
+        payload: normalizeTaskList(res.data?.data)
       });
     } catch (err) {
       dispatch({
