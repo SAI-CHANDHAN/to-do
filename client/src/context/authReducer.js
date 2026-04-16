@@ -1,4 +1,6 @@
 const authReducer = (state, action) => {
+  const hasValidUser = user => Boolean(user && (user.id || user._id || user.email));
+
   switch (action.type) {
     case 'AUTH_INIT':
       return {
@@ -11,7 +13,7 @@ const authReducer = (state, action) => {
     case 'USER_LOADED':
       return {
         ...state,
-        isAuthenticated: true,
+        isAuthenticated: hasValidUser(action.payload),
         loading: false,
         user: action.payload,
         error: null
@@ -19,7 +21,7 @@ const authReducer = (state, action) => {
     case 'AUTH_SUCCESS':
       return {
         ...state,
-        isAuthenticated: true,
+        isAuthenticated: hasValidUser(action.payload),
         loading: false,
         user: action.payload,
         error: null

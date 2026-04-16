@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 
 const Navbar = () => {
-  const { isAuthenticated, loading, logout, user } = useContext(AuthContext);
+  const { isAuthenticated, logout, user } = useContext(AuthContext);
 
   const onLogout = () => {
     logout();
@@ -39,7 +39,7 @@ const Navbar = () => {
           <i className="fas fa-check-double" /> Tasque
         </Link>
       </h1>
-      <ul>{loading ? null : isAuthenticated ? authLinks : guestLinks}</ul>
+      <ul>{isAuthenticated ? authLinks : guestLinks}</ul>
     </div>
   );
 };

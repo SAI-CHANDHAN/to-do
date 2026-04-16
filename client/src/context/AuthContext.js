@@ -25,6 +25,22 @@ const initialState = {
 // Create Context
 export const AuthContext = createContext(initialState);
 
+const normalizeUser = payload => {
+  const candidate = payload?.user || payload;
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+
+  if (!candidate.id && !candidate._id && !candidate.email) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    id: candidate.id || candidate._id
+  };
+};
+
 // Provider Component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
@@ -131,9 +147,16 @@ export const AuthProvider = ({ children }) => {
   const loadUser = async () => {
     try {
       const res = await axios.get(apiUrl('/api/auth'), { withCredentials: true });
+      const normalizedUser = normalizeUser(res.data?.data);
+
+      if (!normalizedUser) {
+        dispatch({ type: 'AUTH_INIT' });
+        return false;
+      }
+
       dispatch({
         type: 'USER_LOADED',
-        payload: res.data.data
+        payload: normalizedUser
       });
       console.log('[auth-client] user loaded');
       return true;
@@ -158,10 +181,14 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json'
         }
       });
+      const normalizedUser = normalizeUser(res.data?.data);
+      if (!normalizedUser) {
+        throw new Error('Invalid registration response payload');
+      }
       console.log('[auth-client] register success');
       dispatch({
         type: 'AUTH_SUCCESS',
-        payload: res.data.data.user
+        payload: normalizedUser
       });
       return { success: true, data: res.data.data };
     } catch (err) {
@@ -191,10 +218,15 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
+      const normalizedUser = normalizeUser(res.data?.data);
+      if (!normalizedUser) {
+        throw new Error('Invalid login response payload');
+      }
+
       console.log('[auth-client] login success');
       dispatch({
         type: 'AUTH_SUCCESS',
-        payload: res.data.data.user
+        payload: normalizedUser
       });
       return { success: true, mfaRequired: false };
     } catch (err) {
@@ -220,9 +252,14 @@ export const AuthProvider = ({ children }) => {
         }
       );
 
+      const normalizedUser = normalizeUser(res.data?.data);
+      if (!normalizedUser) {
+        throw new Error('Invalid MFA login response payload');
+      }
+
       dispatch({
         type: 'AUTH_SUCCESS',
-        payload: res.data.data.user
+        payload: normalizedUser
       });
 
       return { success: true };
