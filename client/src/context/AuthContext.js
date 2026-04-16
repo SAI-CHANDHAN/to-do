@@ -273,6 +273,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const recoverMfaLogin = async mfaToken => {
+    try {
+      const res = await axios.post(
+        apiUrl('/api/auth/mfa/recover'),
+        { mfaToken },
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const normalizedUser = normalizeUser(res.data?.data);
+      if (!normalizedUser) {
+        throw new Error('Invalid MFA recovery response payload');
+      }
+
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: normalizedUser
+      });
+
+      return { success: true, message: res.data?.message };
+    } catch (err) {
+      const message = getApiError(err);
+      dispatch({
+        type: 'AUTH_ERROR',
+        payload: message
+      });
+      return { success: false, error: message };
+    }
+  };
+
   const setupMfa = async () => {
     try {
       const res = await axios.post(apiUrl('/api/auth/mfa/setup'), {}, { withCredentials: true });
@@ -312,6 +346,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const disableMfa = async () => {
+    try {
+      const res = await axios.post(
+        apiUrl('/api/auth/mfa/disable'),
+        { confirm: true },
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await loadUser();
+      return { success: true, message: res.data?.message };
+    } catch (err) {
+      const message = getApiError(err);
+      dispatch({
+        type: 'AUTH_ERROR',
+        payload: message
+      });
+      return { success: false, error: message };
+    }
+  };
+
   // Logout
   const logout = async () => {
     try {
@@ -334,8 +393,10 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         loginWithMfa,
+        recoverMfaLogin,
         setupMfa,
         verifyMfaSetup,
+        disableMfa,
         logout,
         loadUser,
         clearErrors

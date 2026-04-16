@@ -77,6 +77,13 @@ const sanitizeUser = user => ({
   mfaEnabled: Boolean(user.mfaEnabled)
 });
 
+const disableMfaForUser = async user => {
+  user.mfaEnabled = false;
+  user.mfaSecret = null;
+  user.mfaTempSecret = null;
+  await user.save();
+};
+
 // Register user
 exports.registerUser = async (req, res) => {
   const errors = validationResult(req);
@@ -373,6 +380,110 @@ exports.mfaLogin = async (req, res) => {
       success: false,
       data: null,
       message: 'MFA challenge has expired or is invalid',
+      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    });
+  }
+};
+
+exports.recoverMfaLogin = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      data: null,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const { mfaToken } = req.body;
+    const decodedChallenge = verifyMfaChallengeToken(mfaToken);
+    const challengeUserId = decodedChallenge.user?.id;
+    const challengeId = decodedChallenge.challengeId;
+
+    const storedChallengeUserId = await getMfaChallenge(challengeId);
+    if (storedChallengeUserId && storedChallengeUserId !== challengeUserId) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'MFA challenge is not valid',
+        errors: null
+      });
+    }
+
+    const user = await User.findById(challengeUserId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'User not found',
+        errors: null
+      });
+    }
+
+    await disableMfaForUser(user);
+    await revokeMfaChallenge(challengeId);
+
+    const response = await persistSession(res, user);
+    return res.json({
+      ...response,
+      message: 'MFA has been reset. Set it up again from your dashboard.'
+    });
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      data: null,
+      message: 'MFA challenge has expired or is invalid',
+      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    });
+  }
+};
+
+exports.disableMfa = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      data: null,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'User not found',
+        errors: null
+      });
+    }
+
+    if (!user.mfaEnabled && !user.mfaSecret && !user.mfaTempSecret) {
+      return res.json({
+        success: true,
+        data: { mfaEnabled: false },
+        message: 'MFA is already disabled',
+        errors: null
+      });
+    }
+
+    await disableMfaForUser(user);
+
+    return res.json({
+      success: true,
+      data: { mfaEnabled: false },
+      message: 'MFA disabled successfully',
+      errors: null
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Server error',
       errors: process.env.NODE_ENV === 'production' ? null : [err.message]
     });
   }

@@ -4,7 +4,14 @@ const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const auth = require('../middleware/auth');
 const csrfProtection = require('../middleware/csrf');
-const { userValidation, loginValidation, mfaOtpValidation, mfaLoginValidation } = require('../middleware/sanitize');
+const {
+  userValidation,
+  loginValidation,
+  mfaOtpValidation,
+  mfaLoginValidation,
+  mfaRecoveryValidation,
+  mfaDisableValidation
+} = require('../middleware/sanitize');
 const passport = require('passport');
 
 const googleOAuthConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -73,6 +80,11 @@ router.post(
 // @access  Public
 router.post('/mfa/login', credentialLimiter, mfaLoginValidation, authController.mfaLogin);
 
+// @route   POST api/auth/mfa/recover
+// @desc    Recover account by disabling MFA using a valid MFA challenge token
+// @access  Public after password verification step
+router.post('/mfa/recover', credentialLimiter, mfaRecoveryValidation, authController.recoverMfaLogin);
+
 // @route   POST api/auth/refresh
 // @desc    Refresh access token
 // @access  Public with refresh cookie
@@ -92,6 +104,11 @@ router.post('/mfa/setup', csrfProtection, auth, authController.setupMfa);
 // @desc    Confirm MFA setup using OTP
 // @access  Private
 router.post('/mfa/verify', csrfProtection, auth, mfaOtpValidation, authController.verifyMfaSetup);
+
+// @route   POST api/auth/mfa/disable
+// @desc    Disable MFA for authenticated user
+// @access  Private
+router.post('/mfa/disable', csrfProtection, auth, mfaDisableValidation, authController.disableMfa);
 
 // @route   GET api/auth/google
 // @desc    Google OAuth login

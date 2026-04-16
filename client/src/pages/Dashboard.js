@@ -6,7 +6,7 @@ import TaskFilter from '../components/tasks/TaskFilter';
 import Tasks from '../components/tasks/Tasks';
 
 const Dashboard = () => {
-  const { user, setupMfa, verifyMfaSetup, loadUser } = useContext(AuthContext);
+  const { user, setupMfa, verifyMfaSetup, disableMfa, loadUser } = useContext(AuthContext);
   const [filter, setFilter] = useState('');
   const [mfaQr, setMfaQr] = useState('');
   const [mfaManualKey, setMfaManualKey] = useState('');
@@ -44,6 +44,19 @@ const Dashboard = () => {
     await loadUser();
   };
 
+  const onDisableMfa = async () => {
+    const result = await disableMfa();
+    if (!result.success) {
+      setMfaMessage(result.error || 'Unable to disable MFA');
+      return;
+    }
+
+    setMfaQr('');
+    setMfaManualKey('');
+    setMfaOtp('');
+    setMfaMessage(result.message || 'MFA disabled. You can enable it again at any time.');
+  };
+
   return (
     <TaskProvider>
       <div className="grid-2">
@@ -56,7 +69,12 @@ const Dashboard = () => {
           <div className="card" style={{ marginBottom: '1rem' }}>
             <h3>Multi-Factor Authentication</h3>
             {user?.mfaEnabled ? (
-              <p>MFA is enabled for your account.</p>
+              <>
+                <p>MFA is enabled for your account.</p>
+                <button type="button" className="btn btn-danger" onClick={onDisableMfa}>
+                  Disable MFA
+                </button>
+              </>
             ) : (
               <>
                 <button type="button" className="btn btn-primary" onClick={onSetupMfa}>
