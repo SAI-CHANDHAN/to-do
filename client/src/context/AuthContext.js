@@ -11,6 +11,8 @@ axios.defaults.withCredentials = true;
 // Hybrid auth: attach JWT if present
 axios.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
+  // Debug log for token
+  console.log('TOKEN:', token);
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -174,13 +176,14 @@ export const AuthProvider = ({ children }) => {
       console.log('[auth-client] user loaded');
       return true;
     } catch (err) {
-      // If unauthorized, clear token and state
-      localStorage.removeItem('token');
-      console.warn('[auth-client] loadUser failed', getApiError(err));
-      dispatch({ type: 'AUTH_INIT' });
+      // Only logout if token is missing
+      const token = localStorage.getItem('token');
+      console.warn('Load user failed:', err);
+      if (!token) {
+        dispatch({ type: 'AUTH_INIT' });
+      }
       return false;
-    }
-  };
+    };
 
   useEffect(() => {
     loadUser();
