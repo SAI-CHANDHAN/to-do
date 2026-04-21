@@ -141,6 +141,11 @@ exports.registerUser = async (req, res) => {
       });
     }
     return res.redirect(redirectPath);
+  } catch (error) {
+    console.error('Auth Controller Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal Server Error'
     });
   }
 };
