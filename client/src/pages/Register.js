@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL as API_URL } from '../config/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -45,8 +46,7 @@ const Register = () => {
   };
 
   const onGoogleRegister = () => {
-    // EKS Ingress: must use /api/auth/google (not /auth/google)
-    window.location.assign('/api/auth/google');
+    window.location.href = `${API_URL}/api/auth/google`;
   };
 
   return (

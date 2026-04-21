@@ -623,20 +623,20 @@ exports.logout = async (req, res) => {
 
 exports.googleCallback = async (req, res) => {
   try {
-    const response = await persistSession(res, req.user);
-    // Use CLIENT_URL for post-login redirect (production-safe)
+    const user = req.user;
+    const response = await persistSession(res, user);
+    const token = generateAccessToken(user);
     const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
-    const redirectPath = new URL('/dashboard', frontendUrl).toString();
 
     if (req.accepts('json') && req.query.state === 'json') {
       return res.json({
         ...response,
-        accessToken: response.accessToken, // explicit for clarity
+        accessToken: token,
         message: 'Google login successful'
       });
     }
 
-    return res.redirect(redirectPath);
+    return res.redirect(`${frontendUrl}/oauth-success?token=${token}`);
   } catch (err) {
     return res.status(500).json({
       success: false,
