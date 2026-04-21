@@ -1,10 +1,22 @@
 import React, { createContext, useEffect, useReducer } from 'react';
+
 import axios from 'axios';
 import authReducer from './authReducer';
 import getApiError from '../utils/getApiError';
 import { apiUrl } from '../config/api';
 
+// Always send cookies
 axios.defaults.withCredentials = true;
+
+// Hybrid auth: attach JWT if present
+axios.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 const getCookie = name => {
   const cookie = document.cookie
@@ -146,6 +158,7 @@ export const AuthProvider = ({ children }) => {
   // Load User
   const loadUser = async () => {
     try {
+      // Try with JWT or cookies (hybrid)
       const res = await axios.get(apiUrl('/api/auth'), { withCredentials: true });
       const normalizedUser = normalizeUser(res.data?.data);
 
@@ -161,6 +174,8 @@ export const AuthProvider = ({ children }) => {
       console.log('[auth-client] user loaded');
       return true;
     } catch (err) {
+      // If unauthorized, clear token and state
+      localStorage.removeItem('token');
       console.warn('[auth-client] loadUser failed', getApiError(err));
       dispatch({ type: 'AUTH_INIT' });
       return false;
@@ -209,6 +224,11 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json'
         }
       });
+
+      // Store JWT if present (hybrid)
+      if (res.data?.accessToken) {
+        localStorage.setItem('token', res.data.accessToken);
+      }
 
       if (res.data?.data?.mfaRequired) {
         return {
@@ -376,6 +396,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await axios.post(apiUrl('/api/auth/logout'), {}, { withCredentials: true });
     } finally {
+      localStorage.removeItem('token'); // Remove JWT on logout
       dispatch({ type: 'LOGOUT' });
     }
   };

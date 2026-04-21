@@ -66,7 +66,11 @@ const persistSession = async (res, user) => {
     })
   );
 
-  return buildAuthResponse(user);
+  // Hybrid: always return accessToken in response for cross-domain JWT auth
+  return {
+    ...buildAuthResponse(user),
+    accessToken
+  };
 };
 
 const sanitizeUser = user => ({
@@ -120,18 +124,23 @@ exports.registerUser = async (req, res) => {
     await user.save();
 
     const response = await persistSession(res, user);
+    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+    // If cross-domain (Vercel/Railway), redirect with token in URL
+    const accessToken = response.accessToken;
+    const isCrossDomain = frontendUrl.includes('vercel') || frontendUrl.includes('railway');
+    if (isCrossDomain && accessToken) {
+      return res.redirect(`${frontendUrl}/oauth-success?token=${accessToken}`);
+    }
 
-    res.status(201).json({
-      ...response,
-      message: 'Registration successful'
-    });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({
-      success: false,
-      data: null,
-      message: 'Server error',
-      errors: process.env.NODE_ENV === 'production' ? null : [err.message]
+    // Default: AWS/cookie flow
+    const redirectPath = new URL('/dashboard', frontendUrl).toString();
+    if (req.accepts('json') && req.query.state === 'json') {
+      return res.json({
+        ...response,
+        message: 'Google login successful'
+      });
+    }
+    return res.redirect(redirectPath);
     });
   }
 };
@@ -197,6 +206,7 @@ exports.loginUser = async (req, res) => {
 
     res.json({
       ...response,
+      accessToken: response.accessToken, // explicit for clarity
       message: 'Login successful'
     });
   } catch (err) {
@@ -616,6 +626,7 @@ exports.googleCallback = async (req, res) => {
     if (req.accepts('json') && req.query.state === 'json') {
       return res.json({
         ...response,
+        accessToken: response.accessToken, // explicit for clarity
         message: 'Google login successful'
       });
     }
