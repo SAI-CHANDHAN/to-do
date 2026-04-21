@@ -176,72 +176,50 @@ export const AuthProvider = ({ children }) => {
       console.log('[auth-client] user loaded');
       return true;
     } catch (err) {
-      // Only logout if token is missing
       const token = localStorage.getItem('token');
       console.warn('Load user failed:', err);
       if (!token) {
         dispatch({ type: 'AUTH_INIT' });
       }
       return false;
-    };
-
-  useEffect(() => {
-    loadUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Register User
-  const register = async formData => {
-    try {
-      const res = await axios.post(apiUrl('/api/auth/register'), formData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const normalizedUser = normalizeUser(res.data?.data);
-      if (!normalizedUser) {
-        throw new Error('Invalid registration response payload');
-      }
-      console.log('[auth-client] register success');
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: normalizedUser
-      });
-      return { success: true, data: res.data.data };
-    } catch (err) {
-      dispatch({
-        type: 'AUTH_ERROR',
-        payload: getApiError(err)
-      });
-      return { success: false, error: getApiError(err) };
     }
   };
 
-  // Login User
-  const login = async formData => {
-    try {
-      const res = await axios.post(apiUrl('/api/auth/login'), formData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
+      response => response,
+      async error => {
+        const originalRequest = error.config;
+
+        if (
+          error.response?.status !== 401 ||
+          originalRequest?._retry ||
+          originalRequest?.url?.includes('/api/auth/refresh') ||
+          originalRequest?.url?.includes('/api/auth/login') ||
+          originalRequest?.url?.includes('/api/auth/register') ||
+          originalRequest?.url?.includes('/api/auth/mfa/login') ||
+          originalRequest?.url?.includes('/api/auth/mfa/setup') ||
+          originalRequest?.url?.includes('/api/auth/mfa/verify')
+        ) {
+          return Promise.reject(error);
         }
-      });
 
-      // Store JWT if present (hybrid)
-      if (res.data?.accessToken) {
-        localStorage.setItem('token', res.data.accessToken);
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            addSubscriber(error => {
+              if (error) {
+                reject(error);
+                return;
+              }
+              resolve(axios(originalRequest));
+            });
+          });
+        }
+
+        // Skip refresh for JWT-based auth (Vercel/Railway)
+        notifySubscribers(error);
+        dispatch({ type: 'AUTH_INIT' });
+        return Promise.reject(error);
       }
-
-      if (res.data?.data?.mfaRequired) {
-        return {
-          success: true,
-          mfaRequired: true,
-          mfaToken: res.data.data.mfaToken
-        };
-      }
-
-      const normalizedUser = normalizeUser(res.data?.data);
+    );
       if (!normalizedUser) {
         throw new Error('Invalid login response payload');
       }
