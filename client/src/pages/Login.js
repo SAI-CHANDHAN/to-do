@@ -70,7 +70,8 @@ const Login = () => {
   };
 
   const onGoogleLogin = () => {
-    window.location.assign(apiUrl('/api/auth/google'));
+    // EKS Ingress: must use /api/auth/google (not /auth/google)
+    window.location.assign('/api/auth/google');
   };
 
   const onRecoverMfa = async () => {

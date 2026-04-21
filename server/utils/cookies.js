@@ -1,10 +1,13 @@
+
+// Force HTTP cookie settings if HTTP_ELB env is set (for AWS ELB HTTP deployments)
 const isProd = process.env.NODE_ENV === 'production';
+const isHttpElb = process.env.HTTP_ELB === 'true';
 
 const buildCookieOptions = maxAge => ({
   httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? 'none' : 'lax',
-  partitioned: isProd,
+  secure: isHttpElb ? false : isProd,
+  sameSite: isHttpElb ? 'lax' : (isProd ? 'none' : 'lax'),
+  partitioned: isProd && !isHttpElb,
   path: '/',
   maxAge
 });
@@ -16,9 +19,9 @@ const setAuthCookies = (res, { accessToken, refreshToken, csrfToken }) => {
   if (csrfToken) {
     res.cookie('csrfToken', csrfToken, {
       httpOnly: false,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      partitioned: isProd,
+      secure: isHttpElb ? false : isProd,
+      sameSite: isHttpElb ? 'lax' : (isProd ? 'none' : 'lax'),
+      partitioned: isProd && !isHttpElb,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -26,10 +29,11 @@ const setAuthCookies = (res, { accessToken, refreshToken, csrfToken }) => {
 };
 
 const clearAuthCookies = res => {
+  const isHttpElb = process.env.HTTP_ELB === 'true';
   const baseOptions = {
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    partitioned: isProd,
+    secure: isHttpElb ? false : isProd,
+    sameSite: isHttpElb ? 'lax' : (isProd ? 'none' : 'lax'),
+    partitioned: isProd && !isHttpElb,
     path: '/'
   };
 

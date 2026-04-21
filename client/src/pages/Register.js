@@ -46,7 +46,8 @@ const Register = () => {
   };
 
   const onGoogleRegister = () => {
-    window.location.assign(apiUrl('/api/auth/google'));
+    // EKS Ingress: must use /api/auth/google (not /auth/google)
+    window.location.assign('/api/auth/google');
   };
 
   return (

@@ -609,7 +609,8 @@ exports.logout = async (req, res) => {
 exports.googleCallback = async (req, res) => {
   try {
     const response = await persistSession(res, req.user);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    // Use CLIENT_URL for post-login redirect (production-safe)
+    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
     const redirectPath = new URL('/dashboard', frontendUrl).toString();
 
     if (req.accepts('json') && req.query.state === 'json') {
