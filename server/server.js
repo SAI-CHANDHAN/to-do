@@ -81,6 +81,7 @@ app.use(passport.initialize());
 // Define Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 
 // Routes
 app.get('/', (req, res) => {

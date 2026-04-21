@@ -36,7 +36,8 @@ const buildAuthResponse = user => ({
       name: user.name,
       email: user.email,
       avatar: user.avatar || null,
-      mfaEnabled: Boolean(user.mfaEnabled)
+      mfaEnabled: Boolean(user.mfaEnabled),
+      isPremium: Boolean(user.isPremium)
     }
   },
   message: 'Authentication successful',
@@ -78,7 +79,8 @@ const sanitizeUser = user => ({
   name: user.name,
   email: user.email,
   avatar: user.avatar || null,
-  mfaEnabled: Boolean(user.mfaEnabled)
+  mfaEnabled: Boolean(user.mfaEnabled),
+  isPremium: Boolean(user.isPremium)
 });
 
 const disableMfaForUser = async user => {

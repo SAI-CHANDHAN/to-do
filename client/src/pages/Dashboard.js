@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import TaskForm from '../components/tasks/TaskForm';
 import TaskFilter from '../components/tasks/TaskFilter';
 import Tasks from '../components/tasks/Tasks';
+import SubscribeButton from '../components/SubscribeButton';
 
 const Dashboard = () => {
   const { user, setupMfa, verifyMfaSetup, disableMfa, loadUser } = useContext(AuthContext);
@@ -65,6 +66,18 @@ const Dashboard = () => {
         </div>
         <div>
           <h2>Welcome, {user && user.name}</h2>
+          {!user?.isPremium ? (
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3>Upgrade to Premium</h3>
+              <p>Unlock premium features with a monthly subscription.</p>
+              <SubscribeButton />
+            </div>
+          ) : (
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3>Premium Plan</h3>
+              <p>Your premium subscription is active.</p>
+            </div>
+          )}
 
           <div className="card" style={{ marginBottom: '1rem' }}>
             <h3>Multi-Factor Authentication</h3>
